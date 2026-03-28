@@ -1,11 +1,5 @@
 /**
- * PR Reviewer API Server
- * A simple web service that reviews GitHub PRs automatically
- * 
- * Usage:
- *   POST /review
- *   Body: { owner, repo, prNumber, githubToken }
- *   Returns: { issues: [], summary: {}, security: {}, quality: {} }
+ * PR Reviewer API Server - Enhanced with more bug/security patterns
  * 
  * Run: node server.js
  */
@@ -16,51 +10,69 @@ const url = require('url');
 
 const PORT = process.env.PORT || 3000;
 
-// Security patterns to detect
+// Enhanced security patterns
 const SECURITY_PATTERNS = [
-  { regex: /eval\s*\(|new\s+Function\s*\(/g, severity: 'CRITICAL', msg: 'Dynamic code execution - potential injection' },
-  { regex: /innerHTML\s*=/g, severity: 'HIGH', msg: 'Direct DOM manipulation - potential XSS' },
-  { regex: /document\.write\s*\(/g, severity: 'HIGH', msg: 'Dynamic content injection - potential XSS' },
-  { regex: /password\s*=\s*['"][^'"]{1,30}['"]|api[_-]?key\s*=\s*['"][^'"]{10,}['"]/g, severity: 'CRITICAL', msg: 'Hardcoded credential detected' },
-  { regex: /process\.env\.\w+\s*\|\|\s*['"][^'"]+['"]/g, severity: 'LOW', msg: 'Hardcoded fallback for env variable' },
-  { regex: /\.\.\/|\.\.\\\/|path\.join\([^)]+\+[^)]+\)/g, severity: 'HIGH', msg: 'Potential path traversal' },
-  { regex: /WHERE\s+\w+\s*=\s*['"\.]+\s*\+|SQL\s*string.*\+/gi, severity: 'CRITICAL', msg: 'Potential SQL injection - use parameterized queries' },
-  { regex: /crypto\.(createCipher|createDecipher)\(/g, severity: 'MEDIUM', msg: 'Deprecated crypto API - use crypto.createCipheriv' },
+  { regex: /eval\s*\(|new\s+Function\s*\(/g, severity: 'CRITICAL', msg: 'Dynamic code execution - potential injection vulnerability', category: 'Security' },
+  { regex: /innerHTML\s*=/g, severity: 'HIGH', msg: 'Direct DOM manipulation - potential XSS attack', category: 'Security' },
+  { regex: /document\.write\s*\(/g, severity: 'HIGH', msg: 'Dynamic content injection - potential XSS', category: 'Security' },
+  { regex: /password\s*=\s*['"][^'"]{1,30}['"]|api[_-]?key\s*=\s*['"][^'"]{10,}['"]|secret\s*=\s*['"][^'"]{10,}['"]/gi, severity: 'CRITICAL', msg: 'Hardcoded credential detected - remove immediately', category: 'Security' },
+  { regex: /process\.env\.\w+\s*\|\|\s*['"][^'"]+['"]/g, severity: 'LOW', msg: 'Hardcoded fallback for environment variable', category: 'Security' },
+  { regex: /WHERE\s+\w+\s*=\s*['"\.]+\s*\+|SQL\s*string.*\+|concat\([^)]*SELECT|concat\([^)]*INSERT/gi, severity: 'CRITICAL', msg: 'Potential SQL injection - use parameterized queries', category: 'Security' },
+  { regex: /\.\.\/|\.\.\\\/|path\.join\([^)]+\+[^)]+\)/g, severity: 'HIGH', msg: 'Potential path traversal vulnerability', category: 'Security' },
+  { regex: /crypto\.(createCipher|createDecipher)\(/g, severity: 'MEDIUM', msg: 'Deprecated crypto API - use crypto.createCipheriv', category: 'Security' },
+  { regex: /Math\.random\(\)|\.random\(\).*password|\.random\(\).*token|\.random\(\).*id/g, severity: 'HIGH', msg: 'Math.random() is not cryptographically secure - use crypto.randomBytes()', category: 'Security' },
+  { regex: /localhost.*CORS|CORS.*allow.*\*/gi, severity: 'MEDIUM', msg: 'Permissive CORS configuration may allow unauthorized access', category: 'Security' },
+  { regex: /await\s+fetch\([^)]*\)\s*\.then\(/g, severity: 'LOW', msg: 'Mixed await and .then() - use consistent async/await', category: 'Style' },
 ];
 
 // Bug patterns
 const BUG_PATTERNS = [
-  { regex: /try\s*\{[^}]*\}\s*catch[^}]*\{\s*\}/g, severity: 'MEDIUM', msg: 'Empty catch block - errors silently ignored' },
-  { regex: /===?\s*['"]undefined['"]|===?\s*['"]null['"]/g, severity: 'MEDIUM', msg: 'Use undefined/null literals not string comparisons' },
-  { regex: /setTimeout\([^,]+,\s*0\)/g, severity: 'LOW', msg: 'Consider queueMicrotask or Promise.resolve().then()' },
-  { regex: /for\s*\(\s*(var|let)\s+\w+\s+in\s+\w+\)/g, severity: 'MEDIUM', msg: 'Use for...of or Object.keys() for arrays' },
-  { regex: /await\s+.*\n.*\.then\(/g, severity: 'LOW', msg: 'Mixed await and .then() - prefer consistent async/await' },
+  { regex: /try\s*\{[^}]*\}\s*catch[^}]*\{\s*\}/g, severity: 'MEDIUM', msg: 'Empty catch block - errors are silently ignored', category: 'Bug' },
+  { regex: /===?\s*['"]undefined['"]|===?\s*['"]null['"]|===?\s*['"]true['"]|===?\s*['"]false['"]/g, severity: 'MEDIUM', msg: 'Use strict equality with literal values (use undefined/null without quotes)', category: 'Bug' },
+  { regex: /for\s*\(\s*(var|let)\s+\w+\s+in\s+\w+\)/g, severity: 'MEDIUM', msg: 'for...in iterates over all enumerable properties - use for...of or Object.keys() for arrays', category: 'Bug' },
+  { regex: /setTimeout\([^,]+,\s*0\)/g, severity: 'LOW', msg: 'Consider queueMicrotask() or Promise.resolve().then() instead', category: 'Style' },
+  { regex: /new\s+Date\(\)\.getTime\(\)|new\s+Date\(\)\.valueOf\(\)/g, severity: 'LOW', msg: 'Use Date.now() instead of new Date().getTime()', category: 'Style' },
+  { regex: /\[.*?\]\.join\([^)]*\)|Array\..*join\([^)]*\)/g, severity: 'LOW', msg: 'Array join result not used - likely forgot assignment', category: 'Bug' },
+  { regex: /if\s*\([^)]+\)\s*\{[^}]*\}\s*else\s*\{[^}]*if/g, severity: 'LOW', msg: 'Deeply nested if-else chains - consider switch or early returns', category: 'Style' },
+  { regex: /\+\s*''|\+\s*\"\"|\|\|\s*''|\|\|\s*\"\"/g, severity: 'LOW', msg: 'Redundant type coercion - value is already a string', category: 'Style' },
+  { regex: /===.*instanceof|instanceof.*===/g, severity: 'MEDIUM', msg: 'instanceof with strict equality is unreliable - use typeof checks', category: 'Bug' },
 ];
 
 // Quality patterns
 const QUALITY_PATTERNS = [
-  { regex: /console\.(log|debug)\s*\(/g, severity: 'LOW', msg: 'Debug console statement left in code' },
-  { regex: /\/\/\s*(TODO|FIXME|HACK|XXX):/g, severity: 'LOW', msg: 'Unresolved TODO/FIXME comment' },
-  { regex: /var\s+\w+/g, severity: 'LOW', msg: 'Use of var - prefer const/let' },
-  { regex: /==\s*(?!null|undefined|true|false)[^=]/g, severity: 'LOW', msg: 'Use === instead of == for strict comparison' },
+  { regex: /console\.(log|debug|info)\s*\(/g, severity: 'LOW', msg: 'Debug console statement left in production code', category: 'Quality' },
+  { regex: /\/\/\s*(TODO|FIXME|HACK|XXX):|\/\/\s*NOTE:|\/\/\s*BUG:/g, severity: 'LOW', msg: 'Unresolved TODO/FIXME comment - create an issue', category: 'Quality' },
+  { regex: /\bvar\s+\w+/g, severity: 'LOW', msg: 'Use of var - prefer const or let for better scoping', category: 'Style' },
+  { regex: /==\s*(?!null|undefined|true|false)[^=]/g, severity: 'LOW', msg: 'Use === instead of == for strict comparison', category: 'Style' },
+  { regex: /void\s+0|void\s+[^s]/g, severity: 'LOW', msg: 'void expression found - clarify intent or use undefined directly', category: 'Style' },
+  { regex: /;\s*$/gm, severity: 'INFO', msg: 'Trailing semicolon', category: 'Style' },
+  { regex: /\/\/.*\r?\n\s*\/\//g, severity: 'INFO', msg: 'Consecutive single-line comments - consider combining', category: 'Style' },
+  { regex: /try\s*\{[^}]{500,}\}/g, severity: 'MEDIUM', msg: 'Very large try block - consider extracting to a function', category: 'Quality' },
 ];
 
 function analyzeContent(content, filename) {
   if (!content) return [];
   const issues = [];
   const lines = content.split('\n');
-  
   const allPatterns = [...SECURITY_PATTERNS, ...BUG_PATTERNS, ...QUALITY_PATTERNS];
   
   lines.forEach((line, i) => {
+    // Skip comments and strings in some cases
+    const trimmed = line.trim();
+    
     allPatterns.forEach(p => {
+      // Don't flag commented-out code for most patterns
+      const isCommented = trimmed.startsWith('//') || trimmed.startsWith('*');
+      if (isCommented && p.category !== 'Quality') return;
+      
       if (line.match(p.regex)) {
         issues.push({
           type: p.severity,
+          category: p.category,
           file: filename,
           line: i + 1,
           msg: p.msg,
-          code: line.trim().substring(0, 80)
+          code: line.trim().substring(0, 100)
         });
       }
     });
@@ -74,7 +86,11 @@ function githubGet(path, token) {
     const opts = {
       hostname: 'api.github.com',
       path: path,
-      headers: { 'Authorization': 'token ' + token, 'User-Agent': 'PRReviewer/1.0', 'Accept': 'application/vnd.github.v3+json' }
+      headers: { 
+        'Authorization': 'token ' + token, 
+        'User-Agent': 'PRReviewer/1.0', 
+        'Accept': 'application/vnd.github.v3+json' 
+      }
     };
     https.get(opts, res => {
       let d = '';
@@ -88,19 +104,19 @@ function githubGet(path, token) {
 }
 
 async function reviewPR(owner, repo, prNumber, token) {
-  // Get PR details
   const pr = await githubGet(`/repos/${owner}/${repo}/pulls/${prNumber}`, token);
   if (!pr || !pr.number) {
-    throw new Error('PR not found or access denied');
+    throw new Error('PR not found or access denied. Check that the repo is public or your token is valid.');
   }
   
-  // Get files changed
-  const files = await githubGet(`/repos/${owner}/${repo}/pulls/${prNumber}/files?per_page=100`, token);
+  // Get files changed (up to 30 files for performance)
+  const files = await githubGet(`/repos/${owner}/${repo}/pulls/${prNumber}/files?per_page=30`, token);
   
   const allIssues = [];
+  let totalLines = 0;
   
   if (Array.isArray(files)) {
-    for (const file of files.slice(0, 20)) {
+    for (const file of files) {
       if (!file.patch || file.status === 'removed') continue;
       
       // Reconstruct content from patch
@@ -109,6 +125,7 @@ async function reviewPR(owner, repo, prNumber, token) {
         .map(l => l.startsWith('+') ? l.substring(1) : l.startsWith('-') ? '' : l)
         .join('\n');
       
+      totalLines += content.split('\n').length;
       const issues = analyzeContent(content, file.filename);
       issues.forEach(i => allIssues.push(i));
     }
@@ -118,33 +135,51 @@ async function reviewPR(owner, repo, prNumber, token) {
   const high = allIssues.filter(i => i.type === 'HIGH');
   const medium = allIssues.filter(i => i.type === 'MEDIUM');
   const low = allIssues.filter(i => i.type === 'LOW');
+  const info = allIssues.filter(i => i.type === 'INFO');
+  
+  const byCategory = {
+    Security: allIssues.filter(i => i.category === 'Security').length,
+    Bug: allIssues.filter(i => i.category === 'Bug').length,
+    Quality: allIssues.filter(i => i.category === 'Quality').length,
+    Style: allIssues.filter(i => i.category === 'Style').length,
+  };
   
   return {
-    pr: { number: pr.number, title: pr.title, url: pr.html_url, author: pr.user.login },
+    pr: { 
+      number: pr.number, 
+      title: pr.title, 
+      url: pr.html_url, 
+      author: pr.user.login,
+      state: pr.state,
+      additions: pr.additions,
+      deletions: pr.deletions,
+      changedFiles: pr.changed_files
+    },
     stats: {
       files: files?.length || 0,
+      linesAnalyzed: totalLines,
       critical: critical.length,
       high: high.length,
       medium: medium.length,
-      low: low.length
+      low: low.length,
+      info: info.length,
+      byCategory
     },
-    issues: {
-      critical, high, medium, low
-    },
+    issues: { critical, high, medium, low, info },
     summary: allIssues.length === 0 
-      ? '✅ Code looks clean - no major issues detected'
-      : `Found ${critical.length} critical, ${high.length} high, ${medium.length} medium, ${low.length} low severity issues`,
+      ? 'Code looks clean - no major issues detected.'
+      : `Found ${critical.length} critical, ${high.length} high, ${medium.length} medium, ${low.length} low severity issues across ${files?.length || 0} files.`,
     recommendation: critical.length > 0 ? '🔴 REQUEST CHANGES' 
       : high.length > 0 ? '🟡 REQUEST CHANGES'
-      : medium.length > 1 ? '🟡 REQUEST CHANGES'
-      : '🟢 APPROVE'
+      : medium.length > 2 ? '🟡 REQUEST CHANGES'
+      : '🟢 APPROVE',
+    analyzedAt: new Date().toISOString()
   };
 }
 
 const server = http.createServer(async (req, res) => {
   const parsedUrl = url.parse(req.url, true);
   
-  // CORS
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
@@ -157,7 +192,21 @@ const server = http.createServer(async (req, res) => {
   
   if (parsedUrl.pathname === '/health') {
     res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ status: 'ok', service: 'PR Reviewer API' }));
+    res.end(JSON.stringify({ status: 'ok', service: 'PR Reviewer API', version: '2.0' }));
+    return;
+  }
+  
+  if (parsedUrl.pathname === '/patterns') {
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ 
+      patterns: {
+        security: SECURITY_PATTERNS.length,
+        bugs: BUG_PATTERNS.length,
+        quality: QUALITY_PATTERNS.length,
+        total: SECURITY_PATTERNS.length + BUG_PATTERNS.length + QUALITY_PATTERNS.length
+      },
+      languages: ['JavaScript', 'TypeScript', 'Python', 'Go', 'Rust', 'Java', 'C/C++', 'PHP', 'Ruby']
+    }));
     return;
   }
   
@@ -168,9 +217,15 @@ const server = http.createServer(async (req, res) => {
       try {
         const { owner, repo, prNumber, githubToken } = JSON.parse(body);
         
-        if (!owner || !repo || !prNumber || !githubToken) {
+        if (!owner || !repo || !prNumber) {
           res.writeHead(400, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({ error: 'Missing required fields: owner, repo, prNumber, githubToken' }));
+          res.end(JSON.stringify({ error: 'Missing required fields: owner, repo, prNumber' }));
+          return;
+        }
+        
+        if (!githubToken) {
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: 'githubToken is required. Provide a GitHub PAT with repo scope.' }));
           return;
         }
         
@@ -196,36 +251,29 @@ const server = http.createServer(async (req, res) => {
     h1 { color: #f7931a; }
     code { background: #1a1a2e; padding: 0.2rem 0.4rem; border-radius: 4px; }
     pre { background: #1a1a2e; padding: 1rem; border-radius: 8px; overflow-x: auto; }
-    .example { margin: 2rem 0; }
+    .endpoint { margin: 1.5rem 0; }
   </style>
 </head>
 <body>
-  <h1>🤖 PR Reviewer API</h1>
-  <p>Automated GitHub PR analysis service. Detects bugs, security issues, and code quality problems.</p>
+  <h1>PR Reviewer API v2</h1>
+  <p>Automated GitHub PR analysis - Security, Bug, and Quality detection.</p>
   
-  <div class="example">
-    <h3>Usage</h3>
-    <pre>POST /review
-{
-  "owner": "owner",
-  "repo": "repo", 
-  "prNumber": 123,
-  "githubToken": "ghp_..."
-}</pre>
+  <div class="endpoint">
+    <h3>POST /review</h3>
+    <pre>{"owner": "owner", "repo": "repo", "prNumber": 123, "githubToken": "ghp_..."}</pre>
   </div>
   
-  <div class="example">
-    <h3>Response</h3>
-    <pre>{
-  "pr": { "number": 123, "title": "...", "url": "..." },
-  "stats": { "files": 5, "critical": 0, "high": 2, "medium": 1, "low": 3 },
-  "issues": { "critical": [], "high": [...], "medium": [...], "low": [...] },
-  "summary": "Found 0 critical, 2 high, 1 medium, 3 low severity issues",
-  "recommendation": "🟡 REQUEST CHANGES"
-}</pre>
+  <div class="endpoint">
+    <h3>GET /patterns</h3>
+    <p>Returns detection pattern count.</p>
   </div>
   
-  <p><strong>Free to use.</strong> Powered by 一筒 AI Agent.</p>
+  <div class="endpoint">
+    <h3>GET /health</h3>
+    <p>Service health check.</p>
+  </div>
+  
+  <p><strong>Powered by Yitong AI Agent.</strong> contact@yitong.dev</p>
 </body>
 </html>`);
     return;
@@ -236,7 +284,5 @@ const server = http.createServer(async (req, res) => {
 });
 
 server.listen(PORT, () => {
-  console.log(`PR Reviewer API running on port ${PORT}`);
-  console.log(`Health: http://localhost:${PORT}/health`);
-  console.log(`Review: POST http://localhost:${PORT}/review`);
+  console.log('PR Reviewer API v2 running on port', PORT);
 });
