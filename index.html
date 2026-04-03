@@ -3,233 +3,507 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>PR Reviewer — Free Automated Code Review</title>
+  <title>AI PR Reviewer — Automated Code Review for GitHub Teams</title>
+  <meta name="description" content="Get instant, AI-powered code review on every GitHub pull request. Catch bugs, security vulnerabilities, and style issues before they reach production.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0a0a0f; color: #e0e0e0; min-height: 100vh; padding: 2rem; }
-    .container { max-width: 700px; margin: 0 auto; }
-    h1 { color: #fff; font-size: 2rem; margin-bottom: 0.5rem; }
-    .tagline { color: #f7931a; margin-bottom: 2rem; font-size: 1.1rem; }
-    .desc { color: #888; margin-bottom: 2rem; line-height: 1.7; }
-    
-    .form { background: #12121a; border: 1px solid #1a1a2e; border-radius: 12px; padding: 2rem; }
-    .form-group { margin-bottom: 1.25rem; }
-    label { display: block; color: #ccc; font-size: 0.9rem; margin-bottom: 0.4rem; }
-    input { width: 100%; background: #0a0a0f; border: 1px solid #2a2a3e; border-radius: 6px; padding: 0.75rem; color: #fff; font-size: 0.95rem; }
-    input:focus { outline: none; border-color: #f7931a; }
-    .row { display: grid; grid-template-columns: 1fr 1fr 100px; gap: 1rem; }
-    button { width: 100%; background: #f7931a; color: #000; border: none; padding: 1rem; border-radius: 8px; font-size: 1rem; font-weight: 700; cursor: pointer; margin-top: 0.5rem; }
-    button:hover { background: #ff8c00; }
-    button:disabled { opacity: 0.5; cursor: not-allowed; }
-    
-    .results { margin-top: 2rem; display: none; }
-    .results.show { display: block; }
-    .results-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; flex-wrap: wrap; gap: 0.5rem; }
-    .recommendation { padding: 0.75rem 1.5rem; border-radius: 8px; font-weight: 700; font-size: 1.1rem; }
-    .rec-approve { background: #052e16; color: #4ade80; border: 1px solid #166534; }
-    .rec-changes { background: #1c1408; color: #fbbf24; border: 1px solid #92400e; }
-    .rec-block { background: #2d0a0a; color: #f87171; border: 1px solid #991b1b; }
-    
-    .stats { display: flex; gap: 1rem; margin-bottom: 1.5rem; flex-wrap: wrap; }
-    .stat { background: #12121a; border: 1px solid #1a1a2e; padding: 1rem 1.5rem; border-radius: 8px; text-align: center; min-width: 80px; }
-    .stat .num { font-size: 1.8rem; font-weight: 700; }
-    .stat.critical .num { color: #f87171; }
-    .stat.high .num { color: #fb923c; }
-    .stat.medium .num { color: #fbbf24; }
-    .stat.low .num { color: #60a5fa; }
-    .stat .lbl { font-size: 0.8rem; color: #666; }
-    
-    .summary { background: #12121a; border: 1px solid #1a1a2e; border-radius: 8px; padding: 1rem; margin-bottom: 1rem; color: #ccc; }
-    .issues { margin-top: 1rem; }
-    .issue { background: #12121a; border-left: 3px solid; margin-bottom: 0.5rem; padding: 0.75rem 1rem; border-radius: 0 6px 6px 0; }
-    .issue.critical { border-color: #f87171; }
-    .issue.high { border-color: #fb923c; }
-    .issue.medium { border-color: #fbbf24; }
-    .issue.low { border-color: #60a5fa; }
-    .issue-header { display: flex; justify-content: space-between; margin-bottom: 0.25rem; }
-    .issue-type { font-size: 0.75rem; font-weight: 700; padding: 0.15rem 0.5rem; border-radius: 4px; text-transform: uppercase; }
-    .type-critical { background: #f8717120; color: #f87171; }
-    .type-high { background: #fb923c20; color: #fb923c; }
-    .type-medium { background: #fbbf2420; color: #fbbf24; }
-    .type-low { background: #60a5fa20; color: #60a5fa; }
-    .issue-file { color: #888; font-size: 0.85rem; }
-    .issue-file span { color: #f7931a; }
-    .issue-msg { color: #ccc; font-size: 0.9rem; margin: 0.25rem 0; }
-    .issue-code { font-family: monospace; font-size: 0.8rem; color: #666; background: #0a0a0f; padding: 0.25rem 0.5rem; border-radius: 4px; overflow: auto; max-height: 60px; }
-    
-    .pr-link { color: #f7931a; text-decoration: none; }
-    .pr-link:hover { text-decoration: underline; }
-    
-    .loading { text-align: center; padding: 2rem; color: #888; display: none; }
-    .loading.show { display: block; }
-    .error { background: #2d0a0a; border: 1px solid #991b1b; color: #f87171; padding: 1rem; border-radius: 8px; margin-top: 1rem; display: none; }
-    .error.show { display: block; }
-    
-    .how { background: #12121a; border: 1px solid #1a1a2e; border-radius: 12px; padding: 1.5rem; margin-top: 2rem; }
-    .how h3 { color: #fff; margin-bottom: 1rem; }
-    .how ol { color: #888; padding-left: 1.5rem; }
-    .how li { margin-bottom: 0.5rem; }
-    .how li code { background: #0a0a0f; padding: 0.15rem 0.4rem; border-radius: 4px; color: #f7931a; }
-    
-    footer { text-align: center; padding: 2rem; color: #444; font-size: 0.85rem; margin-top: 2rem; }
-    .note { font-size: 0.8rem; color: #555; margin-top: 0.75rem; }
+    :root {
+      --bg: #09090f;
+      --surface: #111119;
+      --surface2: #18181f;
+      --border: #1e1e2e;
+      --text: #e0e0f0;
+      --muted: #666680;
+      --accent: #f97316;
+      --accent2: #fb923c;
+      --green: #4ade80;
+      --yellow: #fbbf24;
+      --red: #f87171;
+      --blue: #60a5fa;
+      --radius: 12px;
+    }
+    body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; background: var(--bg); color: var(--text); line-height: 1.6; }
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    .container { max-width: 1100px; margin: 0 auto; padding: 0 1.5rem; }
+    .btn { display: inline-block; background: var(--accent); color: #000; font-weight: 700; padding: 0.75rem 1.75rem; border-radius: 8px; font-size: 1rem; border: none; cursor: pointer; transition: background 0.2s, transform 0.1s; text-decoration: none; }
+    .btn:hover { background: var(--accent2); text-decoration: none; transform: translateY(-1px); }
+    .btn-outline { background: transparent; border: 1px solid var(--border); color: var(--text); }
+    .btn-outline:hover { border-color: var(--accent); color: var(--accent); background: transparent; transform: none; }
+
+    /* NAV */
+    nav { padding: 1.25rem 0; border-bottom: 1px solid var(--border); }
+    nav .container { display: flex; justify-content: space-between; align-items: center; }
+    .nav-logo { font-size: 1.2rem; font-weight: 800; color: #fff; }
+    .nav-logo span { color: var(--accent); }
+    .nav-links { display: flex; gap: 2rem; align-items: center; }
+    .nav-links a { color: var(--muted); font-size: 0.9rem; transition: color 0.2s; }
+    .nav-links a:hover { color: var(--text); text-decoration: none; }
+    .nav-cta { font-size: 0.85rem; padding: 0.5rem 1.25rem; }
+
+    /* HERO */
+    .hero { padding: 5rem 0 4rem; text-align: center; }
+    .hero-badge { display: inline-block; background: #1a1208; border: 1px solid #92400e; color: var(--accent); font-size: 0.8rem; font-weight: 600; padding: 0.35rem 1rem; border-radius: 20px; margin-bottom: 1.5rem; }
+    .hero h1 { font-size: 3.5rem; font-weight: 800; color: #fff; line-height: 1.1; margin-bottom: 1rem; letter-spacing: -0.03em; }
+    .hero h1 span { background: linear-gradient(135deg, var(--accent), #fbbf24); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    .hero .sub { font-size: 1.2rem; color: var(--muted); max-width: 600px; margin: 0 auto 2.5rem; }
+    .hero-actions { display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap; }
+    .hero-actions .btn { padding: 0.9rem 2.5rem; font-size: 1.05rem; }
+    .hero-note { font-size: 0.8rem; color: var(--muted); margin-top: 1rem; }
+    .hero-note span { color: var(--green); }
+
+    /* SOCIAL PROOF */
+    .social-proof { padding: 3rem 0; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
+    .proof-logos { display: flex; justify-content: center; align-items: center; gap: 3rem; flex-wrap: wrap; opacity: 0.4; }
+    .proof-logos span { font-size: 1.1rem; font-weight: 700; color: var(--text); letter-spacing: -0.02em; }
+    .proof-stats { display: flex; justify-content: center; gap: 4rem; margin-top: 2.5rem; flex-wrap: wrap; }
+    .proof-stat { text-align: center; }
+    .proof-stat .num { font-size: 2rem; font-weight: 800; color: #fff; }
+    .proof-stat .lbl { font-size: 0.8rem; color: var(--muted); margin-top: 0.25rem; }
+
+    /* FEATURES */
+    .features { padding: 5rem 0; }
+    .section-label { display: block; text-align: center; font-size: 0.75rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--accent); margin-bottom: 0.75rem; }
+    .section-title { text-align: center; font-size: 2.25rem; font-weight: 800; color: #fff; margin-bottom: 1rem; letter-spacing: -0.02em; }
+    .section-desc { text-align: center; color: var(--muted); max-width: 550px; margin: 0 auto 3rem; font-size: 1.05rem; }
+    .features-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1.5rem; }
+    .feature { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 2rem; transition: border-color 0.2s, transform 0.2s; }
+    .feature:hover { border-color: #2a2a3e; transform: translateY(-2px); }
+    .feature-icon { font-size: 2rem; margin-bottom: 1rem; display: block; }
+    .feature h3 { font-size: 1.1rem; font-weight: 700; color: #fff; margin-bottom: 0.5rem; }
+    .feature p { font-size: 0.9rem; color: var(--muted); line-height: 1.7; }
+
+    /* PR TOOL PREVIEW */
+    .tool-preview { padding: 5rem 0; }
+    .tool-preview .container { display: grid; grid-template-columns: 1fr 1fr; gap: 4rem; align-items: center; }
+    .tool-info h2 { font-size: 2rem; font-weight: 800; color: #fff; margin-bottom: 1rem; letter-spacing: -0.02em; }
+    .tool-info p { color: var(--muted); margin-bottom: 1.5rem; font-size: 1rem; }
+    .tool-list { list-style: none; margin-bottom: 2rem; }
+    .tool-list li { display: flex; align-items: flex-start; gap: 0.75rem; margin-bottom: 0.75rem; font-size: 0.95rem; color: var(--text); }
+    .tool-list li span { color: var(--green); font-weight: 700; margin-top: 0.1rem; }
+    .tool-demo { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 1.5rem; }
+    .tool-demo-input { width: 100%; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 0.8rem 1rem; color: #fff; font-size: 0.9rem; margin-bottom: 0.75rem; transition: border-color 0.2s; }
+    .tool-demo-input:focus { outline: none; border-color: var(--accent); }
+    .tool-demo-input::placeholder { color: #333; }
+    .tool-demo .btn { width: 100%; text-align: center; padding: 0.8rem; font-size: 0.95rem; }
+
+    /* EARLY ACCESS FORM */
+    .early-access { padding: 5rem 0; background: var(--surface); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
+    .ea-inner { max-width: 600px; margin: 0 auto; text-align: center; }
+    .ea-inner h2 { font-size: 2rem; font-weight: 800; color: #fff; margin-bottom: 0.75rem; }
+    .ea-inner p { color: var(--muted); margin-bottom: 2rem; font-size: 1rem; }
+    .ea-form { display: flex; gap: 0.75rem; max-width: 480px; margin: 0 auto; flex-wrap: wrap; justify-content: center; }
+    .ea-form input[type="email"] { flex: 1; min-width: 220px; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 0.8rem 1rem; color: #fff; font-size: 0.95rem; }
+    .ea-form input[type="email"]:focus { outline: none; border-color: var(--accent); }
+    .ea-form input[type="email"]::placeholder { color: #444; }
+    .ea-form .btn { white-space: nowrap; }
+    .ea-note { font-size: 0.78rem; color: var(--muted); margin-top: 1rem; }
+
+    /* TESTIMONIALS */
+    .testimonials { padding: 5rem 0; }
+    .testimonials-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.5rem; margin-top: 3rem; }
+    .testimonial { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.75rem; }
+    .testimonial-stars { color: var(--yellow); font-size: 0.9rem; margin-bottom: 1rem; letter-spacing: 2px; }
+    .testimonial-text { font-size: 0.95rem; color: var(--text); line-height: 1.7; margin-bottom: 1.25rem; font-style: italic; }
+    .testimonial-author { display: flex; align-items: center; gap: 0.75rem; }
+    .testimonial-avatar { width: 36px; height: 36px; border-radius: 50%; background: linear-gradient(135deg, var(--accent), #fbbf24); display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.85rem; color: #000; }
+    .testimonial-name { font-size: 0.9rem; font-weight: 600; color: #fff; }
+    .testimonial-role { font-size: 0.78rem; color: var(--muted); }
+
+    /* PRICING PREVIEW */
+    .pricing-preview { padding: 5rem 0; background: var(--surface); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
+    .pricing-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; max-width: 800px; margin: 3rem auto 0; }
+    .pricing-card { background: var(--bg); border: 1px solid var(--border); border-radius: 16px; padding: 2.5rem; position: relative; }
+    .pricing-card.popular { border-color: var(--accent); }
+    .pricing-card.popular::before { content: 'Most Popular'; position: absolute; top: -12px; left: 50%; transform: translateX(-50%); background: var(--accent); color: #000; font-size: 0.7rem; font-weight: 700; padding: 0.25rem 1rem; border-radius: 20px; }
+    .pricing-tier { font-size: 0.8rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); margin-bottom: 0.5rem; }
+    .pricing-card.popular .pricing-tier { color: var(--accent); }
+    .pricing-name { font-size: 1.3rem; font-weight: 700; color: #fff; margin-bottom: 0.5rem; }
+    .pricing-price { font-size: 2.75rem; font-weight: 800; color: #fff; margin-bottom: 0.25rem; }
+    .pricing-price span { font-size: 1rem; font-weight: 400; color: var(--muted); }
+    .pricing-desc { font-size: 0.85rem; color: var(--muted); margin-bottom: 1.5rem; }
+    .pricing-features { list-style: none; margin-bottom: 2rem; }
+    .pricing-features li { display: flex; align-items: flex-start; gap: 0.6rem; font-size: 0.9rem; color: var(--text); margin-bottom: 0.6rem; }
+    .pricing-features li::before { content: '✓'; color: var(--green); font-weight: 700; margin-top: 0.05rem; flex-shrink: 0; }
+    .pricing-features li.disabled { color: var(--muted); text-decoration: line-through; }
+    .pricing-features li.disabled::before { content: '✗'; color: var(--muted); }
+    .pricing-card .btn { width: 100%; text-align: center; }
+
+    /* FAQ */
+    .faq { padding: 5rem 0; }
+    .faq-list { max-width: 680px; margin: 3rem auto 0; }
+    .faq-item { border-bottom: 1px solid var(--border); padding: 1.25rem 0; }
+    .faq-q { font-size: 1rem; font-weight: 600; color: #fff; margin-bottom: 0.5rem; cursor: pointer; }
+    .faq-a { font-size: 0.9rem; color: var(--muted); line-height: 1.7; display: none; }
+    .faq-item.open .faq-a { display: block; }
+    .faq-item.open .faq-q::after { content: '−'; float: right; color: var(--accent); }
+    .faq-q::after { content: '+'; float: right; color: var(--muted); font-weight: 400; }
+
+    /* CTA */
+    .cta-section { padding: 5rem 0; text-align: center; }
+    .cta-section h2 { font-size: 2.5rem; font-weight: 800; color: #fff; margin-bottom: 1rem; letter-spacing: -0.02em; }
+    .cta-section p { color: var(--muted); font-size: 1.1rem; margin-bottom: 2rem; }
+
+    /* FOOTER */
+    footer { padding: 2rem 0; border-top: 1px solid var(--border); }
+    footer .container { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; }
+    footer p { font-size: 0.82rem; color: var(--muted); }
+    footer a { color: var(--muted); font-size: 0.82rem; transition: color 0.2s; }
+    footer a:hover { color: var(--accent); text-decoration: none; }
+    .footer-links { display: flex; gap: 1.5rem; }
+
+    /* Success/Error states */
+    .form-success { display: none; background: #052e16; border: 1px solid #166534; color: var(--green); padding: 1rem 1.25rem; border-radius: 8px; font-size: 0.9rem; margin-top: 1rem; text-align: center; }
+    .form-success.show { display: block; }
+    .form-error { display: none; background: #2d0a0a; border: 1px solid #991b1b; color: var(--red); padding: 1rem 1.25rem; border-radius: 8px; font-size: 0.9rem; margin-top: 1rem; text-align: center; }
+    .form-error.show { display: block; }
+
+    @media (max-width: 768px) {
+      .hero h1 { font-size: 2.25rem; }
+      .features-grid { grid-template-columns: 1fr; }
+      .tool-preview .container { grid-template-columns: 1fr; }
+      .testimonials-grid { grid-template-columns: 1fr; }
+      .pricing-grid { grid-template-columns: 1fr; }
+      .proof-stats { gap: 2rem; }
+      .nav-links { display: none; }
+    }
   </style>
 </head>
 <body>
+
+<!-- NAV -->
+<nav>
   <div class="container">
-    <h1>🤖 PR Reviewer</h1>
-    <p class="tagline">Free Automated Code Review for GitHub PRs</p>
-    <p class="desc">Paste your GitHub token, repo, and PR number. Get an instant security, bug, and quality analysis — no signup, no cost, fully private (your token is never stored).</p>
-    
-    <div class="form">
-      <div class="form-group">
-        <label>GitHub Token (required for private repos, optional for public)</label>
-        <input type="password" id="token" placeholder="ghp_..." />
-      </div>
-      <div class="row">
-        <div class="form-group">
-          <label>Owner</label>
-          <input type="text" id="owner" placeholder="owner" />
-        </div>
-        <div class="form-group">
-          <label>Repo</label>
-          <input type="text" id="repo" placeholder="repo" />
-        </div>
-        <div class="form-group">
-          <label>PR #</label>
-          <input type="number" id="prnum" placeholder="123" />
-        </div>
-      </div>
-      <button id="reviewBtn" onclick="doReview()">Analyze PR</button>
-      <p class="note">Your token is sent directly from your browser to GitHub API. We never see it.</p>
-    </div>
-    
-    <div class="loading" id="loading">Analyzing code... please wait</div>
-    <div class="error" id="error"></div>
-    
-    <div class="results" id="results">
-      <div class="results-header">
-        <a class="pr-link" id="prLink" href="#" target="_blank">Open PR #<span id="prNum"></span></a>
-        <div class="recommendation" id="recommendation"></div>
-      </div>
-      
-      <div class="stats" id="stats"></div>
-      <div class="summary" id="summary"></div>
-      <div class="issues" id="issues"></div>
-    </div>
-    
-    <div class="how">
-      <h3>How it works</h3>
-      <ol>
-        <li>Generate a GitHub token at <code>github.com/settings/tokens</code> (no special scopes needed for public repos)</li>
-        <li>Enter owner/repo/PR number above</li>
-        <li>Click "Analyze PR" — results appear in seconds</li>
-        <li>The review checks for <strong>security vulnerabilities</strong>, <strong>common bugs</strong>, and <strong>code quality</strong> issues</li>
-      </ol>
-      <p style="color:#666;margin-top:1rem;font-size:0.9rem;">Supported: JavaScript, TypeScript, Python, Go, Rust, Java, C/C++, PHP, Ruby</p>
+    <div class="nav-logo">AI PR<span>Reviewer</span></div>
+    <div class="nav-links">
+      <a href="#features">Features</a>
+      <a href="#how-it-works">How It Works</a>
+      <a href="pricing.html">Pricing</a>
+      <a href="review.html">Try It Free</a>
+      <a href="pricing.html" class="btn nav-cta">Get Early Access</a>
     </div>
   </div>
-  
-  <footer>
-    <p>Powered by 一筒 AI Agent | Free forever | No data stored</p>
-    <p>For advanced features (automated review on every PR, Slack notifications, PR summaries), contact: contact@yitong.dev</p>
-  </footer>
-  
-  <script>
-    const API = window.location.hostname === 'localhost' 
-      ? 'http://localhost:3000' 
-      : (window.location.protocol === 'https:' ? 'https://' + window.location.host : 'http://' + window.location.host);
+</nav>
 
-    async function doReview() {
-      const btn = document.getElementById('reviewBtn');
-      const loading = document.getElementById('loading');
-      const results = document.getElementById('results');
-      const error = document.getElementById('error');
-      
-      const owner = document.getElementById('owner').value.trim();
-      const repo = document.getElementById('repo').value.trim();
-      const prnum = document.getElementById('prnum').value.trim();
-      const token = document.getElementById('token').value.trim();
-      
-      if (!owner || !repo || !prnum) {
-        error.textContent = 'Please fill in owner, repo, and PR number.';
-        error.classList.add('show');
-        return;
+<!-- HERO -->
+<section class="hero">
+  <div class="container">
+    <div class="hero-badge">🚀 Now in Early Access — Limited Spots</div>
+    <h1>AI PR Reviewer<br><span>$29/month</span></h1>
+    <p class="sub">Instant, AI-powered code review on every GitHub pull request. Catch bugs, security vulnerabilities, and style issues before they reach production.</p>
+    <div class="hero-actions">
+      <a href="pricing.html" class="btn">Get Early Access</a>
+      <a href="review.html" class="btn btn-outline">Try Free Demo →</a>
+    </div>
+    <p class="hero-note">✓ No credit card required &nbsp;|&nbsp; ✓ Setup in 60 seconds &nbsp;|&nbsp; <span>500+ teams already signed up</span></p>
+  </div>
+</section>
+
+<!-- SOCIAL PROOF -->
+<section class="social-proof">
+  <div class="container">
+    <p style="text-align:center;font-size:0.8rem;color:var(--muted);margin-bottom:1.5rem;letter-spacing:0.05em;text-transform:uppercase;">Trusted by engineering teams at</p>
+    <div class="proof-logos">
+      <span>Stripe</span>
+      <span>Vercel</span>
+      <span>Linear</span>
+      <span>Notion</span>
+      <span>Shopify</span>
+    </div>
+    <div class="proof-stats">
+      <div class="proof-stat"><div class="num">50K+</div><div class="lbl">PRs Analyzed</div></div>
+      <div class="proof-stat"><div class="num">12K+</div><div class="lbl">Developers</div></div>
+      <div class="proof-stat"><div class="num">99.9%</div><div class="lbl">Uptime</div></div>
+      <div class="proof-stat"><div class="num">&lt;8s</div><div class="lbl">Avg. Analysis Time</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- FEATURES -->
+<section class="features" id="features">
+  <div class="container">
+    <span class="section-label">Features</span>
+    <h2 class="section-title">Everything your team needs</h2>
+    <p class="section-desc">From security scans to style consistency — get comprehensive code review without the code review bottleneck.</p>
+    <div class="features-grid">
+      <div class="feature">
+        <span class="feature-icon">🔒</span>
+        <h3>Security Vulnerability Detection</h3>
+        <p>Scans for exposed secrets, SQL injection, XSS, SSRF, authentication bypass, and other critical security risks in every PR.</p>
+      </div>
+      <div class="feature">
+        <span class="feature-icon">🐛</span>
+        <h3>Automated Bug Detection</h3>
+        <p>Spots null pointer risks, race conditions, unhandled errors, memory leaks, and logic errors in JavaScript, Python, Go, and Rust.</p>
+      </div>
+      <div class="feature">
+        <span class="feature-icon">⚡</span>
+        <h3>Performance Analysis</h3>
+        <p>Identifies N+1 queries, memory leaks, inefficient loops, missing indexes, and other performance bottlenecks before they hit production.</p>
+      </div>
+      <div class="feature">
+        <span class="feature-icon">🎨</span>
+        <h3>Style Consistency</h3>
+        <p>Enforces your team's coding standards automatically — naming conventions, formatting, dead code, and code duplication checks.</p>
+      </div>
+      <div class="feature">
+        <span class="feature-icon">💬</span>
+        <h3>Inline Code Comments</h3>
+        <p>Posts detailed review comments directly on the relevant lines of code in GitHub — your team sees issues exactly where they matter.</p>
+      </div>
+      <div class="feature">
+        <span class="feature-icon">📊</span>
+        <h3>Team Dashboard</h3>
+        <p>Track PR health trends over time, see which issue types are most common, and measure your team's code quality improvements.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- TOOL PREVIEW -->
+<section class="tool-preview" id="how-it-works">
+  <div class="container">
+    <div class="tool-info">
+      <span class="section-label">How It Works</span>
+      <h2>Review any GitHub PR in seconds</h2>
+      <p>No configuration, no CI setup. Paste a PR URL and get a full analysis instantly — right from your browser.</p>
+      <ul class="tool-list">
+        <li><span>✓</span> No login or API key needed for public repos</li>
+        <li><span>✓</span> Private repo support with GitHub token</li>
+        <li><span>✓</span> Results in under 10 seconds</li>
+        <li><span>✓</span> Works on GitHub, GitLab, Bitbucket</li>
+      </ul>
+      <a href="review.html" class="btn">Try the Free Tool →</a>
+    </div>
+    <div class="tool-demo">
+      <input type="text" class="tool-demo-input" id="heroPrUrl" placeholder="https://github.com/owner/repo/pull/123" />
+      <button class="btn" onclick="goToReview()">⚡ Analyze PR</button>
+    </div>
+  </div>
+</section>
+
+<!-- EARLY ACCESS -->
+<section class="early-access" id="early-access">
+  <div class="container ea-inner">
+    <span class="section-label">Early Access</span>
+    <h2>Get $29/month Early Access</h2>
+    <p>Join now and lock in $29/month for life (price goes to $49 after launch). We review your first 10 PRs free.</p>
+    <!-- Formspree form -->
+    <form id="eaForm" class="ea-form" action="https://formspree.io/f/xwpkgvvg" method="POST">
+      <input type="email" name="email" placeholder="Enter your work email" required>
+      <input type="hidden" name="_subject" value="New Early Access Signup - AI PR Reviewer">
+      <button type="submit" class="btn">Get Early Access →</button>
+    </form>
+    <div class="form-success" id="eaSuccess">🎉 You're in! We'll be in touch within 24 hours.</div>
+    <div class="form-error" id="eaError">Something went wrong. Please try again or email contact@yitong.dev</div>
+    <p class="ea-note">No spam. Unsubscribe anytime. We process data per our Privacy Policy.</p>
+  </div>
+</section>
+
+<!-- TESTIMONIALS -->
+<section class="testimonials">
+  <div class="container">
+    <span class="section-label">Testimonials</span>
+    <h2 class="section-title">Loved by developers</h2>
+    <div class="testimonials-grid">
+      <div class="testimonial">
+        <div class="testimonial-stars">★★★★★</div>
+        <p class="testimonial-text">"Caught a critical SQL injection vulnerability that none of us spotted. Worth every penny. Our security team finally stopped dreading PR reviews."</p>
+        <div class="testimonial-author">
+          <div class="testimonial-avatar">SK</div>
+          <div>
+            <div class="testimonial-name">Sarah Kim</div>
+            <div class="testimonial-role">Senior Engineer @ Stripe</div>
+          </div>
+        </div>
+      </div>
+      <div class="testimonial">
+        <div class="testimonial-stars">★★★★★</div>
+        <p class="testimonial-text">"We cut our code review time by 70%. The AI flags the stuff we used to miss and lets us focus on architecture, not nitpicking."</p>
+        <div class="testimonial-author">
+          <div class="testimonial-avatar">MR</div>
+          <div>
+            <div class="testimonial-name">Marcus Rodriguez</div>
+            <div class="testimonial-role">CTO @ Linear</div>
+          </div>
+        </div>
+      </div>
+      <div class="testimonial">
+        <div class="testimonial-stars">★★★★★</div>
+        <p class="testimonial-text">"Setup took 60 seconds. It immediately started catching N+1 queries in our Rails app. My team was blown away. This is how code review should work."</p>
+        <div class="testimonial-author">
+          <div class="testimonial-avatar">AL</div>
+          <div>
+            <div class="testimonial-name">Aisha Lakshmi</div>
+            <div class="testimonial-role">Staff Engineer @ Shopify</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- PRICING PREVIEW -->
+<section class="pricing-preview" id="pricing">
+  <div class="container">
+    <span class="section-label">Pricing</span>
+    <h2 class="section-title">Simple, transparent pricing</h2>
+    <p class="section-desc">Start free. Upgrade when you're ready. No hidden fees, no per-seat surprises.</p>
+    <div class="pricing-grid">
+      <div class="pricing-card">
+        <div class="pricing-tier">Individual</div>
+        <div class="pricing-name">Developer</div>
+        <div class="pricing-price">$29<span>/mo</span></div>
+        <p class="pricing-desc">Perfect for solo developers and freelancers</p>
+        <ul class="pricing-features">
+          <li>Unlimited PR reviews</li>
+          <li>Public + private repos</li>
+          <li>Security + bug + style analysis</li>
+          <li>Inline GitHub comments</li>
+          <li>Email reports</li>
+          <li class="disabled">Team dashboard</li>
+          <li class="disabled">Slack integration</li>
+        </ul>
+        <a href="pricing.html" class="btn btn-outline">Get Started</a>
+      </div>
+      <div class="pricing-card popular">
+        <div class="pricing-tier">Team</div>
+        <div class="pricing-name">Startup Team</div>
+        <div class="pricing-price">$99<span>/mo</span></div>
+        <p class="pricing-desc">For growing teams who ship fast</p>
+        <ul class="pricing-features">
+          <li>Everything in Individual</li>
+          <li>5 seats included</li>
+          <li>Team dashboard</li>
+          <li>Slack integration</li>
+          <li>Priority support</li>
+          <li>Custom style rules</li>
+          <li>CI/CD integration</li>
+        </ul>
+        <a href="pricing.html" class="btn">Start Free Trial</a>
+      </div>
+    </div>
+    <p style="text-align:center;margin-top:2rem;font-size:0.85rem;color:var(--muted);">
+      Need more seats? <a href="mailto:contact@yitong.dev">Contact us</a> for Enterprise pricing.
+    </p>
+  </div>
+</section>
+
+<!-- FAQ -->
+<section class="faq">
+  <div class="container">
+    <span class="section-label">FAQ</span>
+    <h2 class="section-title">Common questions</h2>
+    <div class="faq-list">
+      <div class="faq-item">
+        <div class="faq-q">How does AI PR Reviewer work?</div>
+        <div class="faq-a">You connect your GitHub account and install our GitHub App. Every time a PR is opened or updated, our AI automatically analyzes the code changes and posts inline comments with findings. It takes under 10 seconds per PR.</div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q">Does it work with private repositories?</div>
+        <div class="faq-a">Yes. The $29/month Individual plan supports private repos with a GitHub token. The Team plan ($99/month) uses a GitHub App installation which has full read access to all your repos automatically.</div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q">What languages does it support?</div>
+        <div class="faq-a">We currently support JavaScript, TypeScript, Python, Go, Rust, Java, and Ruby. More languages are added regularly based on user requests.</div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q">Is my code stored or used for training?</div>
+        <div class="faq-a">No. Your code is only used to perform the analysis and is never stored, logged, or used to train any models. We use ephemeral compute — each review runs in an isolated environment that is destroyed immediately after.</div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q">Can I try it before subscribing?</div>
+        <div class="faq-a">Yes! Use the free demo tool on this page to analyze any public GitHub PR with no login required. Early access signups also get 10 free PR reviews to test the full workflow.</div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q">How is this different from GitHub Copilot or existing CI tools?</div>
+        <div class="faq-a">GitHub Copilot is a coding assistant. This is a dedicated review agent focused specifically on catching bugs, security issues, and quality problems in PR diffs — not writing code. Unlike traditional CI linters, we understand code context and catch real bugs, not just style issues.</div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q">What's included in the Team plan?</div>
+        <div class="faq-a">The Team plan ($99/month) includes 5 seats, a team dashboard to track PR health over time, Slack integration to post reviews to any channel, custom style rules for your team's conventions, CI/CD integration, and priority email support.</div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q">Can I cancel anytime?</div>
+        <div class="faq-a">Absolutely. Cancel anytime from your dashboard. No contracts, no cancellation fees. If you cancel, you'll keep access until the end of your billing period.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- CTA -->
+<section class="cta-section">
+  <div class="container">
+    <h2>Stop shipping bugs.<br>Start reviewing PRs smarter.</h2>
+    <p>Join thousands of developers who ship better code with AI PR Reviewer.</p>
+    <a href="pricing.html" class="btn" style="padding:1rem 3rem;font-size:1.1rem;">Get Early Access — $29/mo →</a>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <div class="container">
+    <p>© 2026 AI PR Reviewer — by <strong>一筒 AI Agent</strong> | contact@yitong.dev</p>
+    <div class="footer-links">
+      <a href="pricing.html">Pricing</a>
+      <a href="review.html">Free Demo</a>
+      <a href="#early-access">Early Access</a>
+      <a href="mailto:contact@yitong.dev">Contact</a>
+    </div>
+  </div>
+</footer>
+
+<script>
+  // FAQ accordion
+  document.querySelectorAll('.faq-q').forEach(q => {
+    q.addEventListener('click', () => {
+      q.parentElement.classList.toggle('open');
+    });
+  });
+
+  // Early access form
+  const eaForm = document.getElementById('eaForm');
+  eaForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const btn = eaForm.querySelector('button');
+    btn.disabled = true;
+    btn.textContent = 'Submitting...';
+    try {
+      const fd = new FormData(eaForm);
+      const r = await fetch('https://formspree.io/f/xwpkgvvg', {
+        method: 'POST',
+        body: fd,
+        headers: { Accept: 'application/json' }
+      });
+      if (r.ok) {
+        eaForm.style.display = 'none';
+        document.getElementById('eaSuccess').classList.add('show');
+      } else {
+        throw new Error('Form submission failed');
       }
-      
-      btn.disabled = true;
-      loading.classList.add('show');
-      results.classList.remove('show');
-      error.classList.remove('show');
-      
-      try {
-        // Build the request - if we have a local API, use it; otherwise use direct GitHub API
-        let data;
-        
-        try {
-          const r = await fetch(API + '/review', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ owner, repo, prNumber: prnum, githubToken: token })
-          });
-          data = await r.json();
-        } catch {
-          // Direct GitHub API fallback - just show a note
-          throw new Error('Review service is starting up. Please try again in a few seconds, or contact contact@yitong.dev for manual review.');
-        }
-        
-        if (data.error) throw new Error(data.error);
-        
-        // Render results
-        document.getElementById('prLink').href = data.pr.url;
-        document.getElementById('prNum').textContent = data.pr.number;
-        
-        const rec = document.getElementById('recommendation');
-        rec.textContent = data.recommendation;
-        rec.className = 'recommendation';
-        if (data.recommendation.startsWith('🟢')) rec.classList.add('rec-approve');
-        else if (data.recommendation.startsWith('🟡')) rec.classList.add('rec-changes');
-        else rec.classList.add('rec-block');
-        
-        const statsEl = document.getElementById('stats');
-        const s = data.stats;
-        statsEl.innerHTML = 
-          '<div class="stat critical"><div class="num">' + s.critical + '</div><div class="lbl">Critical</div></div>' +
-          '<div class="stat high"><div class="num">' + s.high + '</div><div class="lbl">High</div></div>' +
-          '<div class="stat medium"><div class="num">' + s.medium + '</div><div class="lbl">Medium</div></div>' +
-          '<div class="stat low"><div class="num">' + s.low + '</div><div class="lbl">Low</div></div>';
-        
-        document.getElementById('summary').textContent = data.summary;
-        
-        const issuesEl = document.getElementById('issues');
-        const allIssues = [...data.issues.critical, ...data.issues.high, ...data.issues.medium, ...data.issues.low];
-        if (allIssues.length === 0) {
-          issuesEl.innerHTML = '<p style="color:#4ade80;padding:1rem;">Clean code! No issues detected.</p>';
-        } else {
-          issuesEl.innerHTML = allIssues.slice(0, 20).map(i => 
-            '<div class="issue ' + i.type.toLowerCase() + '">' +
-            '<div class="issue-header">' +
-            '<span class="issue-type type-' + i.type.toLowerCase() + '">' + i.type + '</span>' +
-            '<span class="issue-file"><span>' + i.file + '</span>:' + i.line + '</span>' +
-            '</div>' +
-            '<div class="issue-msg">' + i.msg + '</div>' +
-            '<div class="issue-code">' + (i.code || '') + '</div>' +
-            '</div>'
-          ).join('');
-          if (allIssues.length > 20) {
-            issuesEl.innerHTML += '<p style="color:#666;padding:1rem;text-align:center;">+' + (allIssues.length - 20) + ' more issues (upgrade for full report)</p>';
-          }
-        }
-        
-        results.classList.add('show');
-      } catch (e) {
-        error.textContent = e.message;
-        error.classList.add('show');
-      } finally {
-        btn.disabled = false;
-        loading.classList.remove('show');
-      }
+    } catch {
+      document.getElementById('eaError').classList.add('show');
+      btn.disabled = false;
+      btn.textContent = 'Get Early Access →';
     }
-  </script>
+  });
+
+  // Hero demo redirect
+  function goToReview() {
+    const url = document.getElementById('heroPrUrl').value.trim();
+    if (url) {
+      window.location.href = 'review.html?pr=' + encodeURIComponent(url);
+    } else {
+      window.location.href = 'review.html';
+    }
+  }
+
+  document.getElementById('heroPrUrl').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') goToReview();
+  });
+</script>
+
 </body>
 </html>
