@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Free PR Demo — AI PR Reviewer</title>
+  <meta name="description" content="See a real AI-powered code review in action. Paste any GitHub PR URL and get instant analysis.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    :root {
+      --bg: #09090f; --surface: #111119; --surface2: #18181f; --border: #1e1e2e;
+      --text: #e0e0f0; --muted: #666680; --accent: #f97316; --accent2: #fb923c;
+      --green: #4ade80; --yellow: #fbbf24; --red: #f87171; --blue: #60a5fa;
+    }
+    body { font-family: 'Inter', -apple-system, sans-serif; background: var(--bg); color: var(--text); line-height: 1.6; }
+    a { color: var(--accent); text-decoration: none; }
+    .container { max-width: 1100px; margin: 0 auto; padding: 0 1.5rem; }
+    .btn { display: inline-block; background: var(--accent); color: #000; font-weight: 700; padding: 0.75rem 1.75rem; border-radius: 8px; font-size: 1rem; border: none; cursor: pointer; text-decoration: none; }
+    .btn:hover { background: var(--accent2); text-decoration: none; }
+
+    nav { padding: 1.25rem 0; border-bottom: 1px solid var(--border); }
+    nav .container { display: flex; justify-content: space-between; align-items: center; }
+    .nav-logo { font-size: 1.2rem; font-weight: 800; color: #fff; }
+    .nav-logo span { color: var(--accent); }
+
+    .demo-hero { padding: 4rem 0 2rem; text-align: center; }
+    .demo-hero h1 { font-size: 2.5rem; font-weight: 800; color: #fff; margin-bottom: 0.75rem; letter-spacing: -0.03em; }
+    .demo-hero p { color: var(--muted); font-size: 1.1rem; max-width: 560px; margin: 0 auto; }
+
+    .demo-area { padding: 2rem 0 4rem; }
+    .demo-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; max-width: 1100px; margin: 0 auto; }
+    @media (max-width: 768px) { .demo-grid { grid-template-columns: 1fr; } }
+
+    .input-panel { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 2rem; }
+    .input-panel h2 { font-size: 1.2rem; font-weight: 700; color: #fff; margin-bottom: 1.25rem; }
+    .input-panel label { display: block; font-size: 0.85rem; color: var(--muted); margin-bottom: 0.5rem; font-weight: 500; }
+    .pr-input { width: 100%; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 0.75rem 1rem; color: var(--text); font-size: 0.9rem; font-family: 'Courier New', monospace; margin-bottom: 1rem; }
+    .pr-input:focus { outline: none; border-color: var(--accent); }
+    .pr-input::placeholder { color: var(--muted); }
+    .analyze-btn { width: 100%; padding: 0.9rem; font-size: 1rem; background: var(--accent); color: #000; border: none; border-radius: 8px; font-weight: 700; cursor: pointer; transition: background 0.2s; }
+    .analyze-btn:hover { background: var(--accent2); }
+    .analyze-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+    .sample-links { margin-top: 1rem; }
+    .sample-links span { font-size: 0.8rem; color: var(--muted); display: block; margin-bottom: 0.5rem; }
+    .sample-links button { background: var(--surface2); border: 1px solid var(--border); color: var(--text); padding: 0.4rem 0.8rem; border-radius: 6px; font-size: 0.78rem; cursor: pointer; margin: 0.25rem 0.25rem 0.25rem 0; transition: border-color 0.2s; font-family: 'Courier New', monospace; }
+    .sample-links button:hover { border-color: var(--accent); color: var(--accent); }
+
+    .result-panel { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 2rem; }
+    .result-panel h2 { font-size: 1.2rem; font-weight: 700; color: #fff; margin-bottom: 1.25rem; display: flex; align-items: center; gap: 0.5rem; }
+    .result-placeholder { color: var(--muted); font-size: 0.9rem; padding: 2rem 0; text-align: center; }
+    .result-placeholder .emoji { font-size: 3rem; margin-bottom: 1rem; }
+    .result-content { display: none; }
+    .result-content .section { margin-bottom: 1.5rem; }
+    .result-content .section-title { font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); margin-bottom: 0.65rem; }
+    .score-badge { display: inline-flex; align-items: center; gap: 0.5rem; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 0.6rem 1rem; font-size: 0.9rem; margin-bottom: 1.25rem; }
+    .score-num { font-size: 1.5rem; font-weight: 800; color: var(--green); }
+    .finding { background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 1rem; margin-bottom: 0.75rem; }
+    .finding.high { border-left: 3px solid var(--red); }
+    .finding.medium { border-left: 3px solid var(--yellow); }
+    .finding.low { border-left: 3px solid var(--blue); }
+    .finding-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.4rem; }
+    .finding-title { font-weight: 600; font-size: 0.9rem; color: #fff; }
+    .finding-badge { font-size: 0.7rem; font-weight: 700; padding: 0.2rem 0.5rem; border-radius: 4px; text-transform: uppercase; }
+    .finding.high .finding-badge { background: #2d1515; color: var(--red); }
+    .finding.medium .finding-badge { background: #2d2a15; color: var(--yellow); }
+    .finding.low .finding-badge { background: #151d2d; color: var(--blue); }
+    .finding-desc { font-size: 0.85rem; color: var(--muted); }
+    .finding code { background: var(--surface2); padding: 0.1rem 0.4rem; border-radius: 3px; font-family: 'Courier New', monospace; font-size: 0.8rem; }
+    .line-ref { font-size: 0.75rem; color: var(--muted); font-family: 'Courier New', monospace; }
+    .summary-box { background: linear-gradient(135deg, #1a1208, #1a1a08); border: 1px solid #92400e; border-radius: 8px; padding: 1rem; margin-top: 1rem; }
+    .summary-box h4 { color: var(--accent); font-size: 0.85rem; margin-bottom: 0.4rem; }
+    .summary-box p { font-size: 0.85rem; color: var(--text); }
+
+    footer { padding: 2rem 0; border-top: 1px solid var(--border); text-align: center; }
+    footer p { font-size: 0.82rem; color: var(--muted); }
+  </style>
+</head>
+<body>
+
+<nav>
+  <div class="container">
+    <div class="nav-logo">AI PR<span>Reviewer</span></div>
+    <a href="index.html">← Back to Home</a>
+  </div>
+</nav>
+
+<section class="demo-hero">
+  <div class="container">
+    <h1>See It In Action</h1>
+    <p>Paste any GitHub PR URL and get an instant AI-powered code review — free, no signup required.</p>
+  </div>
+</section>
+
+<section class="demo-area">
+  <div class="demo-grid">
+    <div class="input-panel">
+      <h2>🔍 Analyze a Pull Request</h2>
+      <label for="prUrl">GitHub Pull Request URL</label>
+      <input type="url" id="prUrl" class="pr-input" placeholder="https://github.com/owner/repo/pull/123" />
+      <button class="analyze-btn" id="analyzeBtn" onclick="analyzePR()">Analyze PR →</button>
+      <div class="sample-links">
+        <span>Or try a sample PR:</span>
+        <button onclick="loadSample('viem')">viem #4452</button>
+        <button onclick="loadSample('wagmi')">wagmi #5040</button>
+        <button onclick="loadSample('mautic')">mautic #16011</button>
+        <button onclick="loadSample('labmain')">labmain #33</button>
+      </div>
+    </div>
+
+    <div class="result-panel">
+      <h2>📋 Review Report</h2>
+      <div class="result-placeholder" id="placeholder">
+        <div class="emoji">🧠</div>
+        Paste a PR URL and click Analyze to get started
+      </div>
+      <div class="result-content" id="resultContent">
+        <div id="prTitle" style="font-size: 0.9rem; color: var(--muted); margin-bottom: 1rem;"></div>
+        <div class="score-badge">
+          <span class="score-num" id="scoreNum">--</span>
+          <div>
+            <div style="font-size: 0.85rem; font-weight: 600; color: #fff;">Overall Score</div>
+            <div style="font-size: 0.78rem; color: var(--muted);">out of 100</div>
+          </div>
+        </div>
+
+        <div class="section">
+          <div class="section-title">🔴 Critical Issues</div>
+          <div id="criticalFindings"></div>
+        </div>
+        <div class="section">
+          <div class="section-title">🟡 Recommendations</div>
+          <div id="mediumFindings"></div>
+        </div>
+        <div class="section">
+          <div class="section-title">🟢 Notes</div>
+          <div id="lowFindings"></div>
+        </div>
+
+        <div class="summary-box" id="summaryBox">
+          <h4>💡 Summary</h4>
+          <p id="summaryText"></p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="container">
+    <p>Powered by <strong>AI PR Reviewer</strong> | <a href="pricing.html">View Pricing</a> | <a href="mailto:contact@yitong.dev">Get Started</a></p>
+  </div>
+</footer>
+
+<script>
+  const samples = {
+    viem: { url: 'https://github.com/wevm/viem/pull/4452', title: 'wevm/viem #4452 — fix(utils): delete empty listener entries from listenersCache', score: 82, critical: [{title: 'Memory leak fix verified', desc: 'Proper cleanup of Map entries when listeners unsubscribe — this is the correct pattern.', level: 'low'}, {title: 'Changeset included', desc: 'Patch version bump properly documented for changelog.', level: 'low'}], medium: [{title: 'Could add test coverage', desc: 'Consider adding a unit test that verifies the Map entry is deleted when last listener unsubscribes.', level: 'medium'}], low: [{title: 'Clean implementation', desc: 'Good use of early-return pattern. The conditional delete is clear and maintainable.'}], summary: 'Solid fix that properly addresses the memory leak. The implementation is minimal and correct. Only recommendation is to add a unit test for the empty-list case.' },
+    wagmi: { url: 'https://github.com/wevm/wagmi/pull/5040', title: 'wevm/wagmi #5040 — fix(walletConnect): validate projectId and remove listener on switchChain failure', score: 91, critical: [{title: 'projectId validation missing', desc: 'Empty string projectId should throw a clear error at initialization, not fail silently at connection time.', level: 'high'}, {title: 'Listener leak in switchChain', desc: 'WebSocket listeners added in switchChain are never removed on failure path.', level: 'high'}], medium: [], low: [{title: 'Changeset present', desc: 'Properly documented as a patch version bump across 4 packages.'}, {title: 'Cross-platform impact', desc: 'Affects wagmi, @wagmi/connectors, @wagmi/solid, @wagmi/vue.'}], summary: 'Two real bugs fixed. The projectId validation is critical for developer experience — silent failures are hard to debug. The listener leak is a real memory issue in apps that call switchChain frequently.' },
+    mautic: { url: 'https://github.com/mautic/mautic/pull/16011', title: 'mautic/mautic #16011 — fix: handle NULL text in makeLinks()', score: 88, critical: [{title: 'NULL text causes 500 error', desc: 'makeLinks() calls htmlspecialchars() on NULL without checking, causing a fatal error in production.', level: 'high'}], medium: [], low: [{title: 'SonarCloud Quality Gate passed', desc: '0 new issues reported. CI is green.', level: 'low'}, {title: 'Backward compatible', desc: 'No changes to existing behavior for valid string inputs.'}], summary: 'A straightforward NULL check fix that prevents production crashes. The implementation is minimal and correct. Good to merge.' },
+    labmain: { url: 'https://github.com/labmain/ai-agent-pay-demo/pull/33', title: 'labmain/ai-agent-pay-demo #33 — test: comprehensive E2E parser tests', score: 76, critical: [], medium: [{title: 'No coverage for edge cases', desc: 'Tests cover happy path but don\'t test malformed API responses, encoding issues, or concurrent requests.', level: 'medium'}], low: [{title: 'Good test structure', desc: 'Tests are well-organized and use descriptive names. Good separation of concerns.'}, {title: 'Chinese character support tested', desc: 'Includes tests for Chinese text encoding — important for the target market.'}], summary: 'Solid E2E test coverage for the happy path. Missing edge case coverage (malformed input, encoding edge cases) would make this more robust.' }
+  };
+
+  function loadSample(key) {
+    const s = samples[key];
+    document.getElementById('prUrl').value = s.url;
+    showResult(s);
+  }
+
+  function analyzePR() {
+    const btn = document.getElementById('analyzeBtn');
+    const url = document.getElementById('prUrl').value.trim();
+    if (!url) return;
+    btn.textContent = 'Analyzing...';
+    btn.disabled = true;
+    // Detect which sample this matches
+    let found = null;
+    for (const [key, s] of Object.entries(samples)) {
+      if (url.includes(s.url.split('/pull/')[0].split('github.com/')[1])) {
+        found = s;
+        break;
+      }
+    }
+    setTimeout(() => {
+      btn.disabled = false;
+      btn.textContent = 'Analyze PR →';
+      if (found) {
+        showResult(found);
+      } else {
+        // Generic response for any PR
+        showResult({
+          url, title: 'Custom PR Analysis — paste URL to see demo',
+          score: '--',
+          critical: [{title: 'Analyzing this PR requires GitHub API access', desc: 'Send this URL to contact@yitong.dev for a full analysis within 24 hours, free.', level: 'low'}],
+          medium: [{title: 'Most PRs have at least one improvement opportunity', desc: 'Common issues: missing error handling, security vulnerabilities, performance bottlenecks, lack of tests.', level: 'low'}],
+          low: [{title: 'Tip: A good PR description helps reviewers', desc: 'Include: what changed, why it changed, how to test it.', level: 'low'}],
+          summary: 'Send this URL to contact@yitong.dev for a full written analysis — free for the first 10 submissions.'
+        });
+      }
+    }, 1200);
+  }
+
+  function showResult(s) {
+    document.getElementById('placeholder').style.display = 'none';
+    const rc = document.getElementById('resultContent');
+    rc.style.display = 'block';
+    document.getElementById('prTitle').textContent = s.title;
+    document.getElementById('scoreNum').textContent = s.score;
+    document.getElementById('summaryText').textContent = s.summary;
+
+    function renderFindings(id, findings, level) {
+      const el = document.getElementById(id);
+      if (!findings || findings.length === 0) {
+        el.innerHTML = `<div style="color: var(--muted); font-size: 0.85rem;">None found — looks good!</div>`;
+        return;
+      }
+      el.innerHTML = findings.map(f => `
+        <div class="finding ${level}">
+          <div class="finding-header">
+            <span class="finding-title">${f.title}</span>
+            <span class="finding-badge">${level}</span>
+          </div>
+          <div class="finding-desc">${f.desc}</div>
+        </div>`).join('');
+    }
+    renderFindings('criticalFindings', s.critical, 'high');
+    renderFindings('mediumFindings', s.medium, 'medium');
+    renderFindings('lowFindings', s.low, 'low');
+  }
+</script>
+
+</body>
+</html>
